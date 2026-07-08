@@ -151,3 +151,4 @@
 
 # Waydroid
 -dontwarn vendor.waydroid.**
+-keep class id.waydro.** { *; }
