@@ -62,6 +62,7 @@ import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.window.StatusBarWindowModule.InternalWindowViewInflater;
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider;
 import com.android.systemui.unfold.util.JankMonitorTransitionProgressListener;
+import com.android.wm.shell.common.WaydroidMode;
 
 import dagger.assisted.Assisted;
 import dagger.assisted.AssistedFactory;
@@ -103,6 +104,14 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                     refreshStatusBarHeight();
                 }
             };
+
+    // Method reference, not a lambda reading mMainExecutor: that field is a blank final assigned in
+    // the constructor, which an initializer may not read.
+    private final Runnable mWaydroidModeCallback = this::onWaydroidModeChanged;
+
+    private void onWaydroidModeChanged() {
+        mMainExecutor.execute(() -> apply(mCurrentState));
+    }
 
     @AssistedInject
     public StatusBarWindowControllerImpl(
@@ -190,12 +199,14 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
 
         mContentInsetsProvider.addCallback(this::calculateStatusBarLocationsForAllRotations);
         calculateStatusBarLocationsForAllRotations();
+        WaydroidMode.addChangeCallback(mContext, mWaydroidModeCallback);
         mIsAttached = true;
         apply(mCurrentState);
     }
 
     @Override
     public void stop() {
+        WaydroidMode.removeChangeCallback(mWaydroidModeCallback);
         try {
             mWindowManager.removeView(mStatusBarWindowView);
             mMultiDisplayLogger.logStatusBarWindowRemoved(mDisplayId);
@@ -258,8 +269,23 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
         return lp;
     }
 
+    /**
+     * Height the status bar window and the insets it provides should claim. A per-app Waydroid
+     * window never shows the status bar, so claiming nothing there hands the space back to the app
+     * and keeps the window from swallowing touches meant for it.
+     *
+     * <p>Deliberately not folded into {@link #getStatusBarHeight()}: the rest of SystemUI lays
+     * itself out against that, and only what reaches the display should shrink.
+     */
+    private int claimedHeightForRotation(int rotation) {
+        if (!WaydroidMode.isFullUi()) {
+            return 0;
+        }
+        return SystemBarUtils.getStatusBarHeightForRotation(mContext, rotation);
+    }
+
     private WindowManager.LayoutParams getBarLayoutParamsForRotation(int rotation) {
-        int height = SystemBarUtils.getStatusBarHeightForRotation(mContext, rotation);
+        int height = claimedHeightForRotation(rotation);
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
                 height,
@@ -368,10 +394,11 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     }
 
     private void applyHeight(State state) {
-        mLpChanged.height =
-                state.mIsLaunchAnimationRunning ? ViewGroup.LayoutParams.MATCH_PARENT : mBarHeight;
+        mLpChanged.height = state.mIsLaunchAnimationRunning
+                ? ViewGroup.LayoutParams.MATCH_PARENT
+                : (WaydroidMode.isFullUi() ? mBarHeight : 0);
         for (int rot = Surface.ROTATION_0; rot <= Surface.ROTATION_270; rot++) {
-            int height = SystemBarUtils.getStatusBarHeightForRotation(mContext, rot);
+            int height = claimedHeightForRotation(rot);
             mLpChanged.paramsForRotation[rot].height =
                     state.mIsLaunchAnimationRunning ? ViewGroup.LayoutParams.MATCH_PARENT : height;
             // The status bar height could change at runtime if one display has a cutout while
