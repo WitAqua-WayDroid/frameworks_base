@@ -331,6 +331,16 @@ public class Watchdog implements Dumpable {
             mHandler.postAtFrontOfQueue(this);
         }
 
+        /**
+         * Starts the in-flight check's wait over, for when the whole process was stopped
+         * and the time it spent stopped says nothing about this thread.
+         */
+        void restartWaitLocked() {
+            if (!mCompleted) {
+                mStartTimeMillis = mClock.millis();
+            }
+        }
+
         boolean isHandlerPolling() {
             return mHandler.getLooper().getQueue().isPolling();
         }
@@ -905,6 +915,20 @@ public class Watchdog implements Dumpable {
                         debuggerWasConnected = 2;
                     }
                     timeout = checkIntervalMillis - (SystemClock.uptimeMillis() - start);
+                }
+
+                // Waking up a whole interval late means this thread did not run either: the
+                // process was stopped, e.g. its container was frozen, while uptime kept going.
+                // The handlers were stopped along with it, so give them a fresh wait instead
+                // of blaming them for the time nothing ran.
+                final long overslept = SystemClock.uptimeMillis() - start - checkIntervalMillis;
+                if (overslept > checkIntervalMillis) {
+                    Slog.w(TAG, "Woke up " + overslept + "ms late, restarting handler checks");
+                    for (int i = 0; i < mHandlerCheckers.size(); i++) {
+                        mHandlerCheckers.get(i).checker().restartWaitLocked();
+                    }
+                    preWatchdogTriggered = false;
+                    continue;
                 }
 
                 final int waitState = evaluateCheckerCompletionLocked();
