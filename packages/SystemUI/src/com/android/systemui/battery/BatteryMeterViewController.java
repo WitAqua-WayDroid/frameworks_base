@@ -77,7 +77,8 @@ public class BatteryMeterViewController extends ViewController<BatteryMeterView>
             if (StatusBarIconController.ICON_HIDE_LIST.equals(key)) {
                 ArraySet<String> icons = StatusBarIconController.getIconHideList(
                         getContext(), newValue);
-                mView.setVisibility(icons.contains(mSlotBattery) ? View.GONE : View.VISIBLE);
+                mHiddenByTuner = icons.contains(mSlotBattery);
+                updateVisibility();
             }
         }
     };
@@ -97,6 +98,8 @@ public class BatteryMeterViewController extends ViewController<BatteryMeterView>
                 @Override
                 public void onBatteryUnknownStateChanged(boolean isUnknown) {
                     mView.onBatteryUnknownStateChanged(isUnknown);
+                    mBatteryUnknown = isUnknown;
+                    updateVisibility();
                 }
 
                 @Override
@@ -132,6 +135,14 @@ public class BatteryMeterViewController extends ViewController<BatteryMeterView>
     // Some places may need to show the battery conditionally, and not obey the tuner
     private boolean mIgnoreTunerUpdates;
     private boolean mIsSubscribedForTunerUpdates;
+    private boolean mHiddenByTuner;
+    // Hosts without a battery, such as desktops running waydroid, report none present.
+    // Hide the meter there rather than showing a question mark forever.
+    private boolean mBatteryUnknown;
+
+    private void updateVisibility() {
+        mView.setVisibility(mHiddenByTuner || mBatteryUnknown ? View.GONE : View.VISIBLE);
+    }
 
     @Inject
     public BatteryMeterViewController(

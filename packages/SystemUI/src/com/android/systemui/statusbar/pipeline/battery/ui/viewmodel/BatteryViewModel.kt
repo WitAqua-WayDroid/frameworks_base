@@ -72,6 +72,14 @@ sealed class BatteryViewModel(
             source = interactor.isFull,
         )
 
+    /** No battery could be detected, as on desktops running waydroid. */
+    val isStateUnknown: Boolean by
+        hydrator.hydratedStateOf(
+            traceName = "isStateUnknown",
+            initialValue = false,
+            source = interactor.isStateUnknown,
+        )
+
     val isCharging: Boolean by
         hydrator.hydratedStateOf(
             traceName = "isCharging",
