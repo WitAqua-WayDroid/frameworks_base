@@ -175,6 +175,9 @@ fun UnifiedBattery(
     isDarkProvider: () -> IsAreaDark,
     modifier: Modifier,
 ) {
+    // Without a battery there is nothing to show but a question mark; show nothing.
+    if (viewModel.isStateUnknown) return
+
     var bounds by remember { mutableStateOf(Rect()) }
 
     val colorProvider = {

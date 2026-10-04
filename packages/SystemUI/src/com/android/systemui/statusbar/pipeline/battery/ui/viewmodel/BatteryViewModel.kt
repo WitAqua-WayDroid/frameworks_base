@@ -57,6 +57,10 @@ sealed class BatteryViewModel(
 
     val isFull by interactor.isFull.hydratedStateOf(initialValue = false)
 
+    /** No battery could be detected, as on desktops running waydroid. */
+    val isStateUnknown: Boolean by
+        interactor.isStateUnknown.hydratedStateOf(initialValue = false)
+
     val isCharging: Boolean by interactor.isCharging.hydratedStateOf(initialValue = false)
 
     val isBatteryPercentSettingEnabled: Boolean by
