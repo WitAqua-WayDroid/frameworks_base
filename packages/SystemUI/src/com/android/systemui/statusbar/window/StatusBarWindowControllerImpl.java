@@ -105,12 +105,12 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                 }
             };
 
-    // Method reference, not a lambda reading mMainExecutor: that field is a blank final assigned in
-    // the constructor, which an initializer may not read.
+    // Method reference, not a lambda: a field initializer may not read instance fields.
     private final Runnable mWaydroidModeCallback = this::onWaydroidModeChanged;
 
     private void onWaydroidModeChanged() {
-        mMainExecutor.execute(() -> apply(mCurrentState));
+        // The 17.0 base has no mMainExecutor field on this class; use the Context main executor.
+        mContext.getMainExecutor().execute(() -> apply(mCurrentState));
     }
 
     @AssistedInject
