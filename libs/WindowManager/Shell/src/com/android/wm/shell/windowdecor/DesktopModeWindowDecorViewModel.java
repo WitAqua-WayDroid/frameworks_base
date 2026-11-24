@@ -626,7 +626,7 @@ public class DesktopModeWindowDecorViewModel implements WindowDecorViewModel,
         final List<RunningTaskInfo> stale = new ArrayList<>();
         forAllWindowDecorations(decoration -> {
             final RunningTaskInfo taskInfo = decoration.getTaskInfo();
-            if (!shouldShowWindowDecor(taskInfo)) {
+            if (!shouldCreateWindowDecor(taskInfo)) {
                 stale.add(taskInfo);
             }
         });
